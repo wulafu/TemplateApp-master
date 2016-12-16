@@ -1,0 +1,129 @@
+apply plugin: 'com.android.application'
+apply plugin: 'com.neenbedankt.android-apt'
+apply plugin: 'me.tatarka.retrolambda'
+
+def cfg = rootProject.ext.configuration //配置
+def libs = rootProject.ext.libraries    //第三方库
+
+android {
+    compileSdkVersion cfg.compileVersion
+    buildToolsVersion cfg.buildToolsVersion
+
+    defaultConfig {
+        applicationId cfg.package_name
+        minSdkVersion cfg.minSdk
+        targetSdkVersion cfg.targetSdk
+        versionCode cfg.version_code
+        versionName cfg.version_name
+        vectorDrawables.useSupportLibrary = true
+    }
+
+//    signingConfigs {
+//        release {
+//            storeFile file("${rootProject.keystore_file}")
+//            storePassword "${rootProject.store_pwd}"
+//            keyAlias "${rootProject.alias_key}"
+//            keyPassword "${rootProject.key_pwd}"
+//        }
+//    }
+
+    buildTypes {
+        debug {
+            resValue "string", "app_name", "${cfg.debug_app_name}"
+
+            applicationIdSuffix ".debug"
+            minifyEnabled false
+            zipAlignEnabled false
+            shrinkResources false
+        }
+
+        release {
+            resValue "string", "app_name", "${cfg.release_app_name}"
+
+            minifyEnabled false
+            zipAlignEnabled true
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+//            signingConfig signingConfigs.release
+
+            //apk命名
+            android.applicationVariants.all { variant ->
+                variant.outputs.each { output ->
+                    def outputFile = output.outputFile
+                    if (outputFile != null && outputFile.name.endsWith('.apk')) {
+                        //这里修改apk文件名
+                        def fileName = "${cfg.release_app_name}_${buildType.name}_v${defaultConfig.versionName}_${releaseTime()}.apk"
+                        output.outputFile = new File(outputFile.parent, fileName)
+                    }
+                }
+            }
+        }
+    }
+
+    packagingOptions {
+        exclude "META-INF/LICENSE"
+        exclude "META-INF/NOTICE"
+        exclude "META-INF/LICENSE.txt"
+
+    }
+
+    //设置虚拟机堆内存空间大小，避免在编译期间OOM
+    dexOptions {
+        incremental true
+        javaMaxHeapSize "4g"
+    }
+    //打包不检查
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+
+    //导入的android的系统包
+//    compile "com.android.support:appcompat-v7:${SUPPORT_LIBRARY}"
+    testCompile 'junit:junit:4.12'
+
+    //导入的jar包中的文件
+    compile project(path: ':library:common')
+    compile project(path: ':library:irecyclerview')
+    compile project(path: ':library:retrofitutils')
+    compile project(path: ':library:jcvideoplayer')
+
+    //依赖的第三方包
+
+    compile "com.flyco.tablayout:FlycoTabLayout_Lib:${libs.flyco_tablayout}"
+
+    //捕捉crash https://github.com/Sunzxyong/Recovery/blob/master/README.md
+    compile "com.zxy.android:recovery:${libs.recovery}"
+
+    //dagger
+    compile "com.google.dagger:dagger:${libs.dagger}"
+    apt "com.google.dagger:dagger-compiler:${libs.dagger}"
+    provided "org.glassfish:javax.annotation:${libs.javax_annotation}"
+
+    //butterknife
+    compile "com.jakewharton:butterknife:${libs.butterknief}"//view注解
+    apt "com.jakewharton:butterknife-compiler:${libs.butterknief}"
+
+    //日志
+    compile "com.elvishew:xlog:${libs.xlog}"
+
+    //
+    compile "com.tencent.bugly:crashreport:${libs.bugly}"
+
+
+  //  compile 'com.android.support.constraint:constraint-layout:1.0.0-alpha3'
+}
+
+def releaseTime() {
+    return new Date().format("yyyyMMdd", TimeZone.getTimeZone("UTC"))
+}
